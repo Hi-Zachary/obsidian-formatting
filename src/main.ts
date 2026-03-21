@@ -4,6 +4,7 @@ const HEADING_PATTERN = /^(\s{0,3})(#{1,6})(?=\s|$)(.*)$/;
 const FENCED_CODE_PATTERN = /^\s*(`{3,}|~{3,})/;
 const HORIZONTAL_RULE_PATTERN = /^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/;
 const BLOCKQUOTE_PATTERN = /^\s{0,3}>\s?.*$/;
+const TABLE_SEPARATOR_PATTERN = /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+(?:\s*:?-{3,}:?\s*)?$/;
 
 type HeadingDirection = "promote" | "demote";
 type SaveMethod = (this: MarkdownView, clear?: boolean) => Promise<void>;
@@ -171,6 +172,7 @@ export default class HeadingAndSpacingFormatterPlugin extends Plugin {
 
 			const isHorizontalRule = this.isHorizontalRule(line);
 			const isBlockquote = this.isBlockquoteLine(line);
+			const isTableStart = this.isTableStart(lines, index, lineState);
 			const previousOutputLine = output.length > 0 ? output[output.length - 1] : null;
 			const previousContentLine = this.findPreviousContentLine(output);
 
@@ -184,6 +186,10 @@ export default class HeadingAndSpacingFormatterPlugin extends Plugin {
 				previousOutputLine !== "" &&
 				(previousContentLine === null || !this.isBlockquoteLine(previousContentLine))
 			) {
+				output.push("");
+			}
+
+			if (isTableStart && previousOutputLine !== null && previousOutputLine !== "") {
 				output.push("");
 			}
 
@@ -358,6 +364,22 @@ export default class HeadingAndSpacingFormatterPlugin extends Plugin {
 
 	private isBlockquoteLine(line: string): boolean {
 		return BLOCKQUOTE_PATTERN.test(line);
+	}
+
+	private isTableStart(lines: string[], index: number, initialState: ProtectedState): boolean {
+		const headerLine = lines[index] ?? "";
+		const separatorLine = lines[index + 1] ?? "";
+		const separatorState = this.advanceProtectedState(headerLine, {...initialState}, index);
+
+		if (!headerLine.includes("|")) {
+			return false;
+		}
+
+		if (separatorState.inFrontmatter || separatorState.fenceChar !== null) {
+			return false;
+		}
+
+		return TABLE_SEPARATOR_PATTERN.test(separatorLine);
 	}
 
 	private getDocumentEnd(editor: Editor) {

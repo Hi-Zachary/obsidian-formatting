@@ -15,6 +15,7 @@
 - Remove blank lines around headings
 - Keep exactly one blank line before and after blockquotes
 - Keep exactly one blank line before and after horizontal rules
+- Keep exactly one blank line before Markdown tables
 
 ## Development
 
