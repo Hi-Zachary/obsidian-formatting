@@ -161,8 +161,27 @@ export default class HeadingAndSpacingFormatterPlugin extends Plugin {
 			const lineState = {...state};
 			state = this.advanceProtectedState(line, state, index);
 
-			if (lineState.inFrontmatter || lineState.fenceChar !== null) {
+			if (lineState.inFrontmatter) {
 				output.push(line);
+				continue;
+			}
+
+			const openingFenceMatch = lineState.fenceChar === null ? line.match(FENCED_CODE_PATTERN) : null;
+			if (openingFenceMatch?.[1]) {
+				output.push(line);
+				continue;
+			}
+
+			if (lineState.fenceChar !== null) {
+				output.push(line);
+
+				if (this.isClosingFenceLine(line, lineState)) {
+					const nextVisibleLine = this.findNextVisibleLineInfo(lines, index + 1, state);
+					if (nextVisibleLine !== null && output[output.length - 1] !== "") {
+						output.push("");
+					}
+				}
+
 				continue;
 			}
 
@@ -215,6 +234,15 @@ export default class HeadingAndSpacingFormatterPlugin extends Plugin {
 		}
 
 		return output.join("\n");
+	}
+
+	private isClosingFenceLine(line: string, state: ProtectedState): boolean {
+		if (state.fenceChar === null) {
+			return false;
+		}
+
+		const closingFence = new RegExp(`^\\s*${state.fenceChar}{${state.fenceLength},}\\s*$`);
+		return closingFence.test(line);
 	}
 
 	private findPreviousContentLine(lines: string[]): string | null {
